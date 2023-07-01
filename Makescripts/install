@@ -1,0 +1,5 @@
+#!/bin/bash
+echo "this will ensure that everything the Makefile needs, eg brew, pyenv, etc is installed."
+echo "TBD"
+echo "For now ensure you have putup (pyscaffold) in the default python"
+echo "Have pyenv installed and snyk and bandit too."

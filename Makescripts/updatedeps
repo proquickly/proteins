@@ -1,0 +1,3 @@
+#!/bin/bash
+echo "this will update the dependencies in requirements.txt and requirements.dev.txt"
+echo "TBD"

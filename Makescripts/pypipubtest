@@ -1,0 +1,28 @@
+#!/bin/bash
+if [ "$#" -ne 3 ] ; then
+  echo "Usage: createrepo <projectroot> <projectname> <visibility public | private>" 
+  exit 1
+fi
+
+PROJECT_ROOT=$1
+PROJECT=$2
+FULL_PROJECT=$PROJECT_ROOT/$PROJECT
+VISIBILITY=$3
+if [ "$VISIBILITY" != "public" ] && [ "$VISIBILITY" != "private" ] ; then
+   VISIBILITY="private" 
+fi
+
+if [ -d "$FULL_PROJECT" ]; then
+  cd $FULL_PROJECT
+  # add and commit first; branch???
+  git tag -a -m "xxx" 0.2 # (+1 ?) how to get and increment???
+  latestTag=$(git describe --tags `git rev-list --tags --max-count=1`)
+  git tag -a $latestTag ++1 -m "Release $latestTag ++1"
+  tox -e clean
+  tox -e build
+  tox -e publish # handle secrets
+else
+  echo Project $FULL_PROJECT does not exist.
+  exit 1
+fi
+

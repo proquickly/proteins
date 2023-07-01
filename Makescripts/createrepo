@@ -1,0 +1,26 @@
+#!/bin/bash
+if [ "$#" -ne 3 ] ; then
+  echo "Usage: createrepo <projectroot> <projectname> <visibility public | private>" 
+  exit 1
+fi
+
+PROJECT_ROOT=$1
+PROJECT=$2
+FULL_PROJECT=$PROJECT_ROOT/$PROJECT
+VISIBILITY=$3
+if [ "$VISIBILITY" != "public" ] && [ "$VISIBILITY" != "private" ] ; then
+   VISIBILITY="private" 
+fi
+
+if [ -d "$FULL_PROJECT" ]; then
+  cd $FULL_PROJECT
+  git add -A
+  git commit -m "initial commit by make"
+  gh repo create $PROJECT --$VISIBILITY --source=.
+  git push origin master
+  git checkout -b develop
+else
+  echo Project $FULL_PROJECT does not exist.
+  exit 1
+fi
+

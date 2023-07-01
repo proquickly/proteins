@@ -1,0 +1,17 @@
+#!/bin/bash
+if [ "$#" -ne 2 ] ; then
+  echo "Usage: create <projectroot> <projectname>"
+  exit 1
+fi
+PROJECT_ROOT=$1
+PROJECT=$2
+FULL_PROJECT=$PROJECT_ROOT/$PROJECT
+
+if [ -d "$FULL_PROJECT" ]; then
+  echo Project $FULL_PROJECT already exists.
+  exit 1
+fi
+mkdir -p $FULL_PROJECT
+cp $PROJECT_ROOT/pybuild/Makefile $FULL_PROJECT
+mkdir -p $FULL_PROJECT/Makescripts
+cp $PROJECT_ROOT/pybuild/Makescripts/* $FULL_PROJECT/Makescripts

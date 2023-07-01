@@ -1,0 +1,20 @@
+#!/bin/bash
+if [ "$#" -ne 3 ] ; then
+  echo "Usage: addlocalpy <projectroot> <projectname> <pythonversion>"
+  exit 1
+fi
+PROJECT_ROOT=$1
+PROJECT=$2
+FULL_PROJECT=$PROJECT_ROOT/$PROJECT
+PYTHON_VER=$3
+
+if [ -d "$FULL_PROJECT" ]; then
+  cd $FULL_PROJECT
+  pyenv virtualenv $PYTHON_VER $PROJECT
+  pyenv local $PROJECT
+  touch $FULL_PROJECT/src/$PROJECT/app.py
+else
+  echo Project $FULL_PROJECT does not exist.
+  exit 2
+fi
+

@@ -1,0 +1,31 @@
+#!/bin/bash
+if [ "$#" -ne 2 ] ; then
+  echo "Usage: installdeps <projectroot> <projectname>"
+  exit 1
+fi
+PROJECT_ROOT=$1
+PROJECT=$2
+FULL_PROJECT=$PROJECT_ROOT/$PROJECT
+
+if [ -d "$FULL_PROJECT" ]; then
+  cd $FULL_PROJECT
+  cat << 'EOF' > requirements.dev.txt
+tox
+pytest
+pytest-cov
+pysnooper
+-e .
+EOF
+
+  cat << 'EOF' > requirements.txt
+loguru
+EOF
+
+  python -m pip install --upgrade pip 1>/dev/null
+  python -m pip install -r requirements.txt 1>/dev/null
+  python -m pip install -r requirements.dev.txt 1>/dev/null
+else
+  echo Project $FULL_PROJECT does not exist.
+  exit 1
+fi
+

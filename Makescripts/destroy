@@ -1,0 +1,18 @@
+#!/bin/bash
+if [ "$#" -ne 2 ] ; then
+  echo "Usage: destroy <projectroot> <projectname>"
+  exit 1
+fi
+PROJECT_ROOT=$1
+PROJECT=$2
+FULL_PROJECT=$PROJECT_ROOT/$PROJECT
+
+if [ -d "$FULL_PROJECT" ]; then
+  cd $PROJECT_ROOT
+  rm -rf $PROJECT
+  gh repo delete $PROJECT --yes
+  pyenv uninstall -f $PROJECT
+else
+  echo Project $FULL_PROJECT does not already exist.
+  exit 2
+fi
