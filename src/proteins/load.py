@@ -11,7 +11,8 @@ pd.set_option("display.width", None)
 pd.set_option("display.max_colwidth", None)
 
 DATA = "/Users/andy/data/proteins"
-LIMIT = 100
+LIMIT = 100  # float("inf")  # uncomment to do all
+
 intact_f = f"{DATA}/intact.txt"
 biogrid_f = f"{DATA}/BIOGRID-ALL-4.4.222.tab3.txt"
 db = sqlite3.connect(f"{DATA}/proteins.db")
@@ -51,6 +52,7 @@ def load_raw_data():
                 line_with_meta["dup"] = True
             line_with_meta["id"] = progress
             line_with_meta["protein_key"] = str(key)
+            line_with_meta["type"] = "intact"
             intact_processed.append(line_with_meta)
             if progress > LIMIT:
                 break
@@ -81,9 +83,9 @@ def load_raw_data():
                 line1["bkey"] = key[1]
                 line1["type"] = "Swiss-Prot"
                 line1["id"] = progress
-                key = (key[0], key[1], line1["type"])
-                if key not in biogrid_dups:
-                    biogrid_dups.append(key)
+                dup_key = (key[0], key[1], line1["type"])
+                if dup_key not in biogrid_dups:
+                    biogrid_dups.append(dup_key)
                     line1["dup"] = False
                 else:
                     line1["dup"] = True
@@ -104,6 +106,7 @@ def load_raw_data():
                         this_line = line2.copy()
                         # key = (key[0], key[1], line2["type"])
                         key = (akey, bkey, this_line["type"])
+                        match_key = (akey, bkey)
                         # print(key)
                         if key not in biogrid_dups:
                             biogrid_dups.append(key)
@@ -111,20 +114,12 @@ def load_raw_data():
                         else:
                             this_line["dup"] = True
                         this_line["id"] = progress
-                        this_line["protein_key"] = str(key)
+                        this_line["protein_key"] = str(match_key)
                         biogrid_processed.append(this_line)
-            # pprint.pprint(biogrid_processed)
-
 
             if progress > LIMIT:
                 break
-        intact = pd.DataFrame(intact_processed)
-        biogrid = pd.DataFrame(biogrid_processed)
-        print("INTACT")
-        print(intact[["akey", "bkey", "dup", "id", "type", "protein_key"]])
-        print("BIOGRID")
-        print(biogrid[["akey", "bkey", "dup", "id", "type", "protein_key"]])
-        print(biogrid.info())
+
         return intact_processed, biogrid_processed
 
 
@@ -134,12 +129,8 @@ def match():
         print(f"MATCH {match_number}")
         match_number += 1
         line["match"] = match_number
-        # intact_processed["key"]["match"] = match_number
-        # print(f"{intact_processed['key']['match']}")
-        # print(f"{intact_processed['key']['match']}")
-        # continue
+
     biogrid_matches[line["key"]] = line
-    # pprint.pprint(biogrid_matches[line["key"]])
     biogrid_matches[line["id"]] = line
 
 
@@ -158,6 +149,7 @@ def write_pickles():
         """if count > 20:
             break"""
     print(f"Intact matches {count}")
+
     count = 0
     for item in biogrid_matches.items():
         count += 1
@@ -191,7 +183,6 @@ def display_menu():
           4. Save match data
           5. Load match data
           9. Quit
-          option = input()
           """
     )
     option = input()
@@ -202,11 +193,26 @@ def main():
     option = display_menu()
     if option == "1":
         intact, biogrid = load_raw_data()
-    exit()
+
+        intact_dump = pd.DataFrame(intact)
+        biogrid_dump = pd.DataFrame(biogrid)
+        print("INTACT")
+        print(intact_dump[["akey", "bkey", "dup", "id", "type", "protein_key"]])
+        # print(intact_dump.info())
+        print("BIOGRID")
+        print(biogrid_dump[["akey", "bkey", "dup", "id", "type", "protein_key"]])
+        # print(biogrid_dump.info())
+
+        with open("intact.pkl", "wb") as im:
+            pickle.dump(intact, im)
+        with open("biogrid.pkl", "wb") as im:
+            pickle.dump(biogrid, im)
 
 
 if __name__ == "__main__":
     main()
+    exit()  # for now
+
     # intact, biogrid = read_files()
     intact = pd.read_pickle("intact_matches.pkl")
     with open("intact_match.txt", "w") as i:
