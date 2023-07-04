@@ -4,20 +4,37 @@ import pickle
 import pprint
 import sqlite3
 import pandas as pd
+import functools
+import time
+
+DATA = "/Users/andy/data/proteins"
+LIMIT = 500000  # float("inf")  # uncomment to do all
 
 pd.set_option("display.max_rows", None)
 pd.set_option("display.max_columns", None)
 pd.set_option("display.width", None)
 pd.set_option("display.max_colwidth", None)
 
-DATA = "/Users/andy/data/proteins"
-LIMIT = 100  # float("inf")  # uncomment to do all
 
 intact_f = f"{DATA}/intact.txt"
 biogrid_f = f"{DATA}/BIOGRID-ALL-4.4.222.tab3.txt"
 db = sqlite3.connect(f"{DATA}/proteins.db")
 
 
+def time_me(func):
+    @functools.wraps(func)
+    def wrapper_timer(*args, **kwargs):
+        start_time = time.perf_counter()
+        value = func(*args, **kwargs)
+        end_time = time.perf_counter()
+        run_time = end_time - start_time
+        print(f"Ran {func.__name__!r} in {run_time:.4f} secs")
+        return value
+
+    return wrapper_timer
+
+
+@time_me
 def load_raw_data():
     intact_dups = []
     intact_processed = []
@@ -123,65 +140,31 @@ def load_raw_data():
         return intact_processed, biogrid_processed
 
 
-def match():
-    """not needed like this??"""
-    if (a_i, b_i) in intact_processed.keys():
-        print(f"MATCH {match_number}")
-        match_number += 1
-        line["match"] = match_number
-
-    biogrid_matches[line["key"]] = line
-    biogrid_matches[line["id"]] = line
+@time_me
+def get_unmatched(intact, biogrid):
+    return pd.concat([intact, biogrid]).drop_duplicates(keep=False)
 
 
-def write_pickles():
-    with open("intact_matches.pkl", "wb") as im:
-        pickle.dump(intact_processed, im)
-
-    with open("biogrid_matches.pkl", "wb") as bm:
-        pickle.dump(biogrid_matches, bm)
-    print("=" * 80)
-    count = 0
-    for item in intact_processed.items():
-        count += 1
-        pprint.pprint(item)
-        print("-" * 80)
-        """if count > 20:
-            break"""
-    print(f"Intact matches {count}")
-
-    count = 0
-    for item in biogrid_matches.items():
-        count += 1
-        pprint.pprint(item)
-        print("-" * 80)
-        """if count > 20:
-            break"""
-    print(f"Biogrid matches {count}")
-
-
-"""add control total for all catgories"""
+@time_me
+def get_matched(intact, biogrid):
+    return pd.merge(
+        intact, biogrid, how="inner", left_on="protein_key", right_on="protein_key"
+    )
 
 
 def read_files():
-    with open("biogrid_matches.pkl", "rb") as bm:
-        biogrid_matches = pickle.load(bm)
-    with open("intact_matches.pkl", "rb") as im:
-        intact_matches = pickle.load(im)
-    return intact_matches, biogrid_matches
-
-
-import pandas as pd
+    with open(f"{DATA}/biogrid.pkl", "rb") as b:
+        biogrid = pickle.load(b)
+    with open(f"{DATA}/intact.pkl", "rb") as i:
+        intact = pickle.load(i)
+    return intact, biogrid
 
 
 def display_menu():
     print(
         """
           1. Load raw files
-          2. Match protein data
-          3. List match data
-          4. Save match data
-          5. Load match data
+          2. Match and list protein data
           9. Quit
           """
     )
@@ -190,54 +173,53 @@ def display_menu():
 
 
 def main():
-    option = display_menu()
-    if option == "1":
-        intact, biogrid = load_raw_data()
+    while True:
+        option = display_menu()
+        if option == "9":
+            exit(0)
+        if option == "1":
+            intact, biogrid = load_raw_data()
+            intact_dump = pd.DataFrame(intact)
+            biogrid_dump = pd.DataFrame(biogrid)
+            print("INTACT")
+            print(intact_dump[["akey", "bkey", "dup", "id", "type", "protein_key"]])
+            print("BIOGRID")
+            print(biogrid_dump[["akey", "bkey", "dup", "id", "type", "protein_key"]])
+            with open(f"{DATA}/intact.pkl", "wb") as i:
+                pickle.dump(intact_dump, i)
+            with open(f"{DATA}/biogrid.pkl", "wb") as b:
+                pickle.dump(biogrid_dump, b)
 
-        intact_dump = pd.DataFrame(intact)
-        biogrid_dump = pd.DataFrame(biogrid)
-        print("INTACT")
-        print(intact_dump[["akey", "bkey", "dup", "id", "type", "protein_key"]])
-        # print(intact_dump.info())
-        print("BIOGRID")
-        print(biogrid_dump[["akey", "bkey", "dup", "id", "type", "protein_key"]])
-        # print(biogrid_dump.info())
-
-        with open("intact.pkl", "wb") as im:
-            pickle.dump(intact, im)
-        with open("biogrid.pkl", "wb") as im:
-            pickle.dump(biogrid, im)
+        if option == "2":
+            intact, biogrid = read_files()
+            unmatched = get_unmatched(intact, biogrid)
+            matched = get_matched(intact, biogrid)
+            with open(f"{DATA}/unmatched.pkl", "wb") as u:
+                pickle.dump(unmatched, u)
+            with open(f"{DATA}/matched.pkl", "wb") as m:
+                pickle.dump(biogrid, m)
+            print("MATCHED")
+            print(
+                matched[
+                    [
+                        "protein_key",
+                        "type_x",
+                        "dup_x",
+                        "id_x",
+                        "type_y",
+                        "dup_y",
+                        "id_y",
+                    ]
+                ]
+            )
+            # print("UNMATCHED")
+            # print(unmatched[["protein_key", "type", "dup", "id"]])
+            print(f"Number matched is {len(matched.index)}")
+            print(f"Number unmatched is {len(unmatched.index)}")
+            print(
+                f"% matched is {round(len(matched.index) / (len(matched.index) + len(unmatched.index)), 4)}"
+            )
 
 
 if __name__ == "__main__":
     main()
-    exit()  # for now
-
-    # intact, biogrid = read_files()
-    intact = pd.read_pickle("intact_matches.pkl")
-    with open("intact_match.txt", "w") as i:
-        count = 0
-        for k, v in intact.items():
-            i.write(str(k))
-            i.write("\n")
-            for k2, v2 in v.items():
-                i.write(str(k2) + ", " + str(v2))
-                i.write("\n")
-            count += 1
-            if count > 100:
-                break
-            i.write("\n\n")
-
-    biogrid = pd.read_pickle("biogrid_matches.pkl")
-    with open("biogrid_match.txt", "w") as i:
-        count = 0
-        for k, v in biogrid.items():
-            i.write(str(k))
-            i.write("\n")
-            for k2, v2 in v.items():
-                i.write(str(k2) + ", " + str(v2))
-                i.write("\n")
-            count += 1
-            if count > 100:
-                break
-            i.write("\n\n")
